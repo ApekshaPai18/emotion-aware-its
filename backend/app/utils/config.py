@@ -37,16 +37,13 @@ class Settings(BaseSettings):
 # Create global settings object
 settings = Settings()
 
-# Override database URL for Render free tier
+# ========== FIX: Override database URL for Render free tier ==========
 if os.environ.get('RENDER'):
     # Use /tmp directory which is writable on Render free tier
-    import os
-    os.makedirs('/tmp', exist_ok=True)
     settings.database_url = "sqlite:////tmp/its.db"
     print(f"✅ Render mode: Using database at {settings.database_url}")
 elif settings.database_url.startswith('sqlite:///./'):
     # Local development - ensure directory exists
-    import os
     db_path = settings.database_url.replace('sqlite:///', '')
     db_dir = os.path.dirname(db_path)
     if db_dir:
