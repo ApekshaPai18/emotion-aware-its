@@ -21,7 +21,6 @@ import axios from 'axios';
 import VideocamIcon from '@mui/icons-material/Videocam';
 import VideocamOffIcon from '@mui/icons-material/VideocamOff';
 import CloseIcon from '@mui/icons-material/Close';
-import * as faceapi from 'face-api.js';
 
 const LESSONS = [
   {
@@ -81,7 +80,7 @@ const LESSONS = [
   }
 ];
 
-// ========== NEW: Simplified content for each lesson ==========
+// Simplified content for each lesson
 const SIMPLIFIED_LESSONS: { [key: number]: string } = {
   1: "🐍 Python is a language that helps you talk to computers. It's like learning a new way to give instructions that computers understand easily.\n\nThink of it as a translator between human English and computer language. You write simple English-like code, and Python converts it to something the computer can run.\n\nSimple Example:\nprint('Hello') → This tells Python to show 'Hello' on screen.",
   
@@ -94,7 +93,7 @@ const SIMPLIFIED_LESSONS: { [key: number]: string } = {
   5: "🔄 Loops help you repeat tasks without writing the same code many times.\n\nInstead of writing 'brush teeth' 100 times, just say 'repeat brushing 100 times'. That's a loop!\n\nSimple Example:\nfor i in range(3):\n    print(i)   # Prints 0, 1, 2\n\n# While loop - keeps going until condition is false\ncount = 0\nwhile count < 3:\n    print(count)\n    count = count + 1"
 };
 
-// ========== NEW: Examples for each concept ==========
+// Examples for each concept
 const EXAMPLES_BY_LESSON: { [key: number]: string } = {
   1: "Try this in your mind:\nprint('Hello, World!')\n\nThis is the first program most people write. It just says 'Hello, World!' on the screen.",
   
@@ -125,10 +124,7 @@ const Learn: React.FC = () => {
   const [faceDetected, setFaceDetected] = useState(false);
   const [showFaceWarning, setShowFaceWarning] = useState(false);
   const [webcamActive, setWebcamActive] = useState(false);
-  const [modelsLoading, setModelsLoading] = useState(true);
-  const [modelsError, setModelsError] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const detectionIntervalRef = useRef<NodeJS.Timeout | null>(null);
   
@@ -146,125 +142,49 @@ const Learn: React.FC = () => {
   // Attempts tracking state
   const [questionAttempts, setQuestionAttempts] = useState<{[key: string]: number}>({});
 
-  // ========== NEW: States for simplified mode ==========
+  // States for simplified mode
   const [isSimplified, setIsSimplified] = useState(false);
   const [simplifiedContent, setSimplifiedContent] = useState('');
 
-  // Load face-api models
-  useEffect(() => {
-    const loadModels = async () => {
-      try {
-        setModelsLoading(true);
-        setModelsError(false);
-        
-        const MODEL_URL = 'https://justadudewhohacks.github.io/face-api.js/models';
-        
-        await Promise.all([
-          faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
-          faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
-          faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
-          faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL)
-        ]);
-        
-        console.log('Face detection models loaded successfully');
-        setModelsLoading(false);
-      } catch (err) {
-        console.error('Failed to load face detection models:', err);
-        setModelsError(true);
-        setModelsLoading(false);
-        setFaceDetected(true);
-      }
-    };
+  // Simplified face and emotion detection (no face-api.js)
+  const detectFaceAndEmotion = () => {
+    if (!videoRef.current || !webcamActive) return;
     
-    loadModels();
-  }, []);
-
-  const detectFaceAndEmotion = async () => {
-    if (!videoRef.current || !videoRef.current.videoWidth || modelsLoading) return;
+    setPrevEmotion(emotion);
     
-    if (modelsError) {
-      setFaceDetected(true);
-      return;
-    }
+    // Simulate face detection (always true when webcam is active)
+    setFaceDetected(true);
     
-    try {
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
+    // Simulate emotion based on quiz performance
+    let detectedEmotion = 'neutral';
+    
+    if (quizSubmitted && mode === 'quiz') {
+      const lastAnswerCorrect = quizAnswer !== null && 
+        quizAnswer === LESSONS[currentLesson].quiz.correct;
       
-      if (!canvas) return;
-      
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      
-      const detections = await faceapi.detectAllFaces(
-        video, 
-        new faceapi.TinyFaceDetectorOptions()
-      ).withFaceLandmarks().withFaceExpressions();
-      
-      const hasFace = detections.length > 0;
-      
-      setPrevEmotion(emotion);
-      
-      if (hasFace) {
-        setFaceDetected(true);
-        
-        if (showFaceWarning) {
-          setShowFaceWarning(false);
-        }
-        
-        const expressions = detections[0].expressions;
-        let dominantEmotion = 'neutral';
-        let maxScore = 0;
-        
-        for (const [exp, score] of Object.entries(expressions)) {
-          if (score > maxScore) {
-            maxScore = score;
-            if (exp === 'happy') dominantEmotion = 'happy';
-            else if (exp === 'sad') dominantEmotion = 'sad';
-            else if (exp === 'angry') dominantEmotion = 'frustrated';
-            else if (exp === 'surprised') dominantEmotion = 'surprise';
-            else if (exp === 'fearful') dominantEmotion = 'confused';
-            else if (exp === 'disgusted') dominantEmotion = 'frustrated';
-            else dominantEmotion = 'neutral';
-          }
-        }
-        
-        const displayEmotion = dominantEmotion.charAt(0).toUpperCase() + dominantEmotion.slice(1);
-        setEmotion(displayEmotion);
-        
-        setEmotionHistory(prev => {
-          const newHistory = { ...prev };
-          const emotionKey = dominantEmotion.toLowerCase();
-          newHistory[emotionKey] = (newHistory[emotionKey] || 0) + 1;
-          return newHistory;
-        });
-        
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          faceapi.draw.drawDetections(canvas, detections);
-          faceapi.draw.drawFaceLandmarks(canvas, detections);
-          faceapi.draw.drawFaceExpressions(canvas, detections);
-        }
-        
+      if (lastAnswerCorrect) {
+        detectedEmotion = 'happy';
+      } else if (streak === 0 && repeatCount > 0) {
+        detectedEmotion = 'frustrated';
+      } else if (repeatCount > 2) {
+        detectedEmotion = 'sad';
       } else {
-        setFaceDetected(false);
-        setEmotion('No Face');
-        
-        const ctx = canvas?.getContext('2d');
-        if (ctx) {
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-        }
-        
-        if (!showFaceWarning) {
-          setShowFaceWarning(true);
-          setSnackbarOpen(true);
-        }
+        detectedEmotion = 'neutral';
       }
-    } catch (err) {
-      console.error('Face detection error:', err);
-      setFaceDetected(true);
+    } else {
+      const emotions = ['neutral', 'neutral', 'neutral', 'happy', 'confused'];
+      detectedEmotion = emotions[Math.floor(Math.random() * emotions.length)];
     }
+    
+    const displayEmotion = detectedEmotion.charAt(0).toUpperCase() + detectedEmotion.slice(1);
+    setEmotion(displayEmotion);
+    
+    setEmotionHistory(prev => {
+      const newHistory = { ...prev };
+      const emotionKey = detectedEmotion.toLowerCase();
+      newHistory[emotionKey] = (newHistory[emotionKey] || 0) + 1;
+      return newHistory;
+    });
   };
 
   const startWebcam = async () => {
@@ -282,7 +202,7 @@ const Learn: React.FC = () => {
           if (detectionIntervalRef.current) {
             clearInterval(detectionIntervalRef.current);
           }
-          detectionIntervalRef.current = setInterval(detectFaceAndEmotion, 500);
+          detectionIntervalRef.current = setInterval(detectFaceAndEmotion, 2000);
         };
       }
     } catch (err) {
@@ -342,170 +262,166 @@ const Learn: React.FC = () => {
     }
   };
 
-  // ========== NEW: Function to reset simplified mode ==========
   const resetSimplifiedMode = () => {
     setIsSimplified(false);
     setSimplifiedContent('');
   };
 
   const handleQuizSubmit = async () => {
-  if (!faceDetected && !modelsError) {
-    setShowFaceWarning(true);
-    setSnackbarOpen(true);
-    return;
-  }
-  
-  if (quizAnswer === null) return;
-  
-  setLoading(true);
-  const correct = quizAnswer === LESSONS[currentLesson].quiz.correct;
-  
-  const questionId = `${LESSONS[currentLesson].id}_q${currentLesson + 1}`;
-  const currentAttempts = (questionAttempts[questionId] || 0) + 1;
-  setQuestionAttempts(prev => ({ ...prev, [questionId]: currentAttempts }));
-  
-  const newQuizAnswers = [...quizAnswers, correct];
-  setQuizAnswers(newQuizAnswers);
-  
-  if (correct) {
-    const newScore = score + 1;
-    setScore(newScore);
-    setStreak(streak + 1);
-    setMessage(`✅ Correct! ${LESSONS[currentLesson].quiz.explanation}`);
-    setQuizSubmitted(true);
-    await updateRL(true, 'normal');
-    
-    // Reset simplified mode on correct answer
-    resetSimplifiedMode();
-    
-    try {
-      await axios.post('http://localhost:8000/api/v1/interactions/', {
-        user_id: userId,
-        session_id: location.state?.sessionId,
-        lesson_id: LESSONS[currentLesson].id.toString(),
-        question_id: questionId,
-        is_correct: true,
-        detected_emotion: emotion.toLowerCase(),
-        emotion_confidence: 0.8,
-        rl_action: 'normal'
-      });
-    } catch (err) {
-      console.error('Failed to record interaction:', err);
+    if (!faceDetected) {
+      setShowFaceWarning(true);
+      setSnackbarOpen(true);
+      return;
     }
     
-    setTimeout(async () => {  // CHANGE: Make this async
-      const isLastLesson = currentLesson === LESSONS.length - 1;
+    if (quizAnswer === null) return;
+    
+    setLoading(true);
+    const correct = quizAnswer === LESSONS[currentLesson].quiz.correct;
+    
+    const questionId = `${LESSONS[currentLesson].id}_q${currentLesson + 1}`;
+    const currentAttempts = (questionAttempts[questionId] || 0) + 1;
+    setQuestionAttempts(prev => ({ ...prev, [questionId]: currentAttempts }));
+    
+    const newQuizAnswers = [...quizAnswers, correct];
+    setQuizAnswers(newQuizAnswers);
+    
+    if (correct) {
+      const newScore = score + 1;
+      setScore(newScore);
+      setStreak(streak + 1);
+      setMessage(`✅ Correct! ${LESSONS[currentLesson].quiz.explanation}`);
+      setQuizSubmitted(true);
+      await updateRL(true, 'normal');
       
-      if (isLastLesson) {
-        // ========== ADD THIS LEADERBOARD UPDATE CODE HERE ==========
-        try {
-          await axios.post(`http://localhost:8000/api/v1/leaderboard/update/${userId}`);
-          console.log('Leaderboard updated successfully');
-        } catch (err) {
-          console.error('Failed to update leaderboard:', err);
-        }
-        // ========== END OF LEADERBOARD UPDATE CODE ==========
-        
-        navigate('/results', {
-          state: {
-            userId: userId,
-            userName: userName,
-            stats: {
-              totalQuestions: LESSONS.length,
-              correctAnswers: newScore,
-              emotions: emotionHistory,
-              quizAnswers: newQuizAnswers
-            }
-          }
+      resetSimplifiedMode();
+      
+      try {
+        await axios.post('http://localhost:8000/api/v1/interactions/', {
+          user_id: userId,
+          session_id: location.state?.sessionId,
+          lesson_id: LESSONS[currentLesson].id.toString(),
+          question_id: questionId,
+          is_correct: true,
+          detected_emotion: emotion.toLowerCase(),
+          emotion_confidence: 0.8,
+          rl_action: 'normal'
         });
-      } else {
-        setCurrentLesson(currentLesson + 1);
-        setMode('lesson');
-        setQuizAnswer(null);
-        setQuizSubmitted(false);
-        setMessage('');
-        setRlAction('');
-        resetSimplifiedMode();
+      } catch (err) {
+        console.error('Failed to record interaction:', err);
       }
-      setLoading(false);
-    }, 1500);
-    
-  } else {
-    setStreak(0);
-    const action = await getRLDecision();
-    setRlAction(action);
-    await updateRL(false, action);
-    setMessage(`❌ Incorrect. ${LESSONS[currentLesson].quiz.explanation}`);
-    
-    try {
-      await axios.post('http://localhost:8000/api/v1/interactions/', {
-        user_id: userId,
-        session_id: location.state?.sessionId,
-        lesson_id: LESSONS[currentLesson].id.toString(),
-        question_id: questionId,
-        is_correct: false,
-        detected_emotion: emotion.toLowerCase(),
-        emotion_confidence: 0.8,
-        rl_action: action
-      });
-    } catch (err) {
-      console.error('Failed to record interaction:', err);
-    }
-    
-    setTimeout(() => {
-      let actionMessage = '';
-      switch(action) {
-        case 'hint':
-          actionMessage = `💡 HINT: ${LESSONS[currentLesson].quiz.explanation}`;
-          setMessage(actionMessage);
-          break;
-        case 'repeat':
-          setRepeatCount(repeatCount + 1);
-          actionMessage = '🔄 Reviewing the lesson again';
-          setMessage(actionMessage);
-          setTimeout(() => setMode('lesson'), 500);
-          break;
-        case 'simplify':
-          setIsSimplified(true);
-          setSimplifiedContent(SIMPLIFIED_LESSONS[currentLesson + 1] || 
-            `Let me explain ${LESSONS[currentLesson].title} simply:\n\n` +
-            LESSONS[currentLesson].content.split('.')[0] + 
-            "\n\nTake it step by step. Practice with small examples first.");
+      
+      setTimeout(async () => {
+        const isLastLesson = currentLesson === LESSONS.length - 1;
+        
+        if (isLastLesson) {
+          try {
+            await axios.post(`http://localhost:8000/api/v1/leaderboard/update/${userId}`);
+            console.log('Leaderboard updated successfully');
+          } catch (err) {
+            console.error('Failed to update leaderboard:', err);
+          }
+          
+          navigate('/results', {
+            state: {
+              userId: userId,
+              userName: userName,
+              stats: {
+                totalQuestions: LESSONS.length,
+                correctAnswers: newScore,
+                emotions: emotionHistory,
+                quizAnswers: newQuizAnswers
+              }
+            }
+          });
+        } else {
+          setCurrentLesson(currentLesson + 1);
           setMode('lesson');
-          setMessage('');
-          setQuizSubmitted(false);
           setQuizAnswer(null);
-          break;
-        case 'example':
-          const exampleContent = EXAMPLES_BY_LESSON[currentLesson + 1] || 
-            `Examples for ${LESSONS[currentLesson].title}:\n\n` +
-            "Try creating your own simple version of this concept.\n" +
-            "Start with small numbers and simple cases.";
-          setMessage(`📝 ${exampleContent}`);
-          break;
-        case 'motivate':
-          actionMessage = '💪 You can do this! Try again!';
-          setMessage(actionMessage);
-          break;
-        default:
-          actionMessage = 'Try again!';
-          setMessage(actionMessage);
+          setQuizSubmitted(false);
+          setMessage('');
+          setRlAction('');
+          resetSimplifiedMode();
+        }
+        setLoading(false);
+      }, 1500);
+      
+    } else {
+      setStreak(0);
+      const action = await getRLDecision();
+      setRlAction(action);
+      await updateRL(false, action);
+      setMessage(`❌ Incorrect. ${LESSONS[currentLesson].quiz.explanation}`);
+      
+      try {
+        await axios.post('http://localhost:8000/api/v1/interactions/', {
+          user_id: userId,
+          session_id: location.state?.sessionId,
+          lesson_id: LESSONS[currentLesson].id.toString(),
+          question_id: questionId,
+          is_correct: false,
+          detected_emotion: emotion.toLowerCase(),
+          emotion_confidence: 0.8,
+          rl_action: action
+        });
+      } catch (err) {
+        console.error('Failed to record interaction:', err);
       }
       
       setTimeout(() => {
-        if (action !== 'repeat' && action !== 'simplify') {
-          setQuizSubmitted(false);
-          setQuizAnswer(null);
+        let actionMessage = '';
+        switch(action) {
+          case 'hint':
+            actionMessage = `💡 HINT: ${LESSONS[currentLesson].quiz.explanation}`;
+            setMessage(actionMessage);
+            break;
+          case 'repeat':
+            setRepeatCount(repeatCount + 1);
+            actionMessage = '🔄 Reviewing the lesson again';
+            setMessage(actionMessage);
+            setTimeout(() => setMode('lesson'), 500);
+            break;
+          case 'simplify':
+            setIsSimplified(true);
+            setSimplifiedContent(SIMPLIFIED_LESSONS[currentLesson + 1] || 
+              `Let me explain ${LESSONS[currentLesson].title} simply:\n\n` +
+              LESSONS[currentLesson].content.split('.')[0] + 
+              "\n\nTake it step by step. Practice with small examples first.");
+            setMode('lesson');
+            setMessage('');
+            setQuizSubmitted(false);
+            setQuizAnswer(null);
+            break;
+          case 'example':
+            const exampleContent = EXAMPLES_BY_LESSON[currentLesson + 1] || 
+              `Examples for ${LESSONS[currentLesson].title}:\n\n` +
+              "Try creating your own simple version of this concept.\n" +
+              "Start with small numbers and simple cases.";
+            setMessage(`📝 ${exampleContent}`);
+            break;
+          case 'motivate':
+            actionMessage = '💪 You can do this! Try again!';
+            setMessage(actionMessage);
+            break;
+          default:
+            actionMessage = 'Try again!';
+            setMessage(actionMessage);
         }
-        setRlAction('');
-        setLoading(false);
-      }, 2000);
-    }, 500);
-  }
-};
+        
+        setTimeout(() => {
+          if (action !== 'repeat' && action !== 'simplify') {
+            setQuizSubmitted(false);
+            setQuizAnswer(null);
+          }
+          setRlAction('');
+          setLoading(false);
+        }, 2000);
+      }, 500);
+    }
+  };
 
   const handleTakeQuiz = () => {
-    if (!faceDetected && !modelsError) {
+    if (!faceDetected) {
       setShowFaceWarning(true);
       setSnackbarOpen(true);
       return;
@@ -522,14 +438,6 @@ const Learn: React.FC = () => {
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
-      {/* Model Loading Indicator */}
-      {modelsLoading && (
-        <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
-          <CircularProgress size={24} sx={{ mr: 1 }} />
-          <Typography>Loading face detection models...</Typography>
-        </Box>
-      )}
-
       {/* Face Warning Dialog */}
       <Dialog open={showFaceWarning} onClose={() => setShowFaceWarning(false)}>
         <DialogTitle sx={{ bgcolor: '#ff9800', color: 'white' }}>
@@ -573,7 +481,7 @@ const Learn: React.FC = () => {
             </Typography>
           </Box>
 
-          {/* ========== UPDATED: Lesson display with simplified mode support ========== */}
+          {/* Lesson display with simplified mode support */}
           {mode === 'lesson' && (
             <>
               <Typography variant="h4" gutterBottom sx={{ color: '#1976d2' }}>
@@ -595,7 +503,7 @@ const Learn: React.FC = () => {
                     variant="contained" 
                     onClick={handleTakeQuiz} 
                     size="large"
-                    disabled={!faceDetected && !modelsError}
+                    disabled={!faceDetected}
                     sx={{ px: 4 }}
                   >
                     Take Quiz
@@ -630,7 +538,7 @@ const Learn: React.FC = () => {
                     key={idx}
                     variant={quizAnswer === idx ? 'contained' : 'outlined'}
                     onClick={() => !quizSubmitted && setQuizAnswer(idx)}
-                    disabled={quizSubmitted || (!faceDetected && !modelsError)}
+                    disabled={quizSubmitted || !faceDetected}
                     sx={{ justifyContent: 'flex-start', p: 2, textTransform: 'none' }}
                   >
                     {String.fromCharCode(65 + idx)}. {opt}
@@ -645,7 +553,7 @@ const Learn: React.FC = () => {
               <Button
                 variant="contained"
                 onClick={handleQuizSubmit}
-                disabled={quizAnswer === null || quizSubmitted || loading || (!faceDetected && !modelsError)}
+                disabled={quizAnswer === null || quizSubmitted || loading || !faceDetected}
                 sx={{ mt: 3, py: 1.5 }}
                 fullWidth
               >
@@ -666,18 +574,6 @@ const Learn: React.FC = () => {
               playsInline
               muted
             />
-            <canvas
-              ref={canvasRef}
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                width: '100%',
-                height: '100%',
-                pointerEvents: 'none',
-                transform: 'scaleX(-1)'
-              }}
-            />
           </div>
           
           {!webcamActive ? (
@@ -687,20 +583,13 @@ const Learn: React.FC = () => {
               onClick={startWebcam} 
               sx={{ mt: 2 }} 
               fullWidth
-              disabled={modelsLoading}
             >
-              {modelsLoading ? 'Loading Models...' : 'Start Webcam'}
+              Start Webcam
             </Button>
           ) : (
             <Button variant="outlined" startIcon={<VideocamOffIcon />} onClick={stopWebcam} sx={{ mt: 2 }} fullWidth color="error">
               Stop Webcam
             </Button>
-          )}
-
-          {modelsError && (
-            <Alert severity="warning" sx={{ mt: 2 }}>
-              Face detection models couldn't load. Continuing without face detection.
-            </Alert>
           )}
 
           <Box sx={{ textAlign: 'center', mt: 2 }}>
@@ -721,7 +610,7 @@ const Learn: React.FC = () => {
             />
           </Box>
 
-          {!faceDetected && webcamActive && !modelsError && (
+          {!faceDetected && webcamActive && (
             <Alert severity="warning" sx={{ mt: 2 }}>
               ⚠️ Face not detected! Please look at the camera to continue learning.
             </Alert>
