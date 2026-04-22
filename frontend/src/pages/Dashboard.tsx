@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Container,
   Paper,
@@ -16,8 +16,6 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  IconButton,
-  Tooltip,
   Alert,
   CircularProgress
 } from '@mui/material';
@@ -62,20 +60,15 @@ interface DashboardData {
 const Dashboard: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { userId, userName } = location.state || {};
+  const { userId } = location.state || {};
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    if (!userId) {
-      navigate('/');
-      return;
-    }
-    fetchDashboardData();
-  }, [userId]);
-
-  const fetchDashboardData = async () => {
+  // Wrap fetchDashboardData in useCallback to avoid recreation on each render
+  const fetchDashboardData = useCallback(async () => {
+    if (!userId) return;
+    
     try {
       const res = await axios.get(`http://localhost:8000/api/v1/dashboard/${userId}`);
       setDashboardData(res.data);
@@ -85,7 +78,16 @@ const Dashboard: React.FC = () => {
       setError('Failed to load dashboard data');
       setLoading(false);
     }
-  };
+  }, [userId]);
+
+  // Fix useEffect - add fetchDashboardData and navigate to dependencies
+  useEffect(() => {
+    if (!userId) {
+      navigate('/');
+      return;
+    }
+    fetchDashboardData();
+  }, [userId, navigate, fetchDashboardData]);
 
   const exportToPDF = () => {
     if (!dashboardData) return;

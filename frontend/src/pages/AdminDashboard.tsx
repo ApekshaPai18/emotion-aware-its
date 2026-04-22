@@ -21,7 +21,6 @@ import {
   InputLabel,
   CircularProgress,
   Alert,
-  Avatar,
   IconButton,
   Tooltip
 } from '@mui/material';
@@ -31,8 +30,8 @@ import PeopleIcon from '@mui/icons-material/People';
 import SchoolIcon from '@mui/icons-material/School';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import RefreshIcon from '@mui/icons-material/Refresh';
-import VisibilityIcon from '@mui/icons-material/Visibility';
-import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
+
+
 
 interface User {
   id: number;
