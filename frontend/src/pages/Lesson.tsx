@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Container,
   Paper,
@@ -13,8 +13,8 @@ import {
   DialogContent,
   DialogActions,
   Snackbar,
-  IconButton,
-  CircularProgress
+  IconButton
+  
 } from '@mui/material';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
