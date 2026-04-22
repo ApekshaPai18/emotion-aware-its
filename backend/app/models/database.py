@@ -5,13 +5,41 @@ from sqlalchemy import create_engine, Column, Integer, String, Float, Boolean, D
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from datetime import datetime
+import os
 
 from ..utils.config import settings
 
-engine = create_engine(
-    settings.database_url,
-    connect_args={"check_same_thread": False}
-)
+# ========== FIX: Create database directory if it doesn't exist ==========
+def get_engine():
+    """Create engine with proper directory creation for SQLite"""
+    db_url = settings.database_url
+    
+    # For SQLite databases, ensure the directory exists
+    if db_url.startswith('sqlite:///'):
+        # Extract the file path
+        db_path = db_url.replace('sqlite:///', '')
+        
+        # Get directory path
+        db_dir = os.path.dirname(db_path)
+        
+        # Create directory if it doesn't exist
+        if db_dir:
+            os.makedirs(db_dir, exist_ok=True)
+            print(f"✅ Database directory created/verified: {db_dir}")
+        
+        # Create engine with SQLite specific settings
+        engine = create_engine(
+            db_url,
+            connect_args={"check_same_thread": False}
+        )
+    else:
+        # For PostgreSQL or other databases
+        engine = create_engine(db_url)
+    
+    return engine
+
+# Create engine using the function
+engine = get_engine()
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
@@ -124,36 +152,49 @@ class Question(Base):
     lesson = relationship("Lesson")
 
 def init_db():
-    Base.metadata.create_all(bind=engine)
-    print("✅ Database tables created/verified")
-    
-    # Create default admin user if not exists
-    from sqlalchemy.orm import Session
-    db = SessionLocal()
-    
-    # Create admin user
-    admin = db.query(User).filter(User.username == "admin").first()
-    if not admin:
-        admin = User(
-            username="admin",
-            email="admin@example.com",
-            role="admin"
-        )
-        db.add(admin)
-        db.commit()
-        print("✅ Default admin user created (username: admin, email: admin@example.com)")
-    
-    # Create leaderboard entries for all existing users
-    users = db.query(User).all()
-    for user in users:
-        entry = db.query(LeaderboardEntry).filter(LeaderboardEntry.user_id == user.id).first()
-        if not entry:
-            entry = LeaderboardEntry(user_id=user.id)
-            db.add(entry)
-    
-    db.commit()
-    db.close()
-    print("✅ Leaderboard entries created for all users")
+    """Initialize database - create tables and default data"""
+    try:
+        # Create all tables
+        Base.metadata.create_all(bind=engine)
+        print("✅ Database tables created/verified")
+        
+        # Create default admin user if not exists
+        from sqlalchemy.orm import Session
+        db = SessionLocal()
+        
+        try:
+            # Create admin user
+            admin = db.query(User).filter(User.username == "admin").first()
+            if not admin:
+                admin = User(
+                    username="admin",
+                    email="admin@example.com",
+                    role="admin"
+                )
+                db.add(admin)
+                db.commit()
+                print("✅ Default admin user created (username: admin, email: admin@example.com)")
+            
+            # Create leaderboard entries for all existing users
+            users = db.query(User).all()
+            for user in users:
+                entry = db.query(LeaderboardEntry).filter(LeaderboardEntry.user_id == user.id).first()
+                if not entry:
+                    entry = LeaderboardEntry(user_id=user.id)
+                    db.add(entry)
+            
+            db.commit()
+            print("✅ Leaderboard entries created for all users")
+            
+        except Exception as e:
+            db.rollback()
+            print(f"⚠️ Error creating default data: {e}")
+        finally:
+            db.close()
+            
+    except Exception as e:
+        print(f"❌ Error initializing database: {e}")
+        raise
 
 def get_db():
     db = SessionLocal()
