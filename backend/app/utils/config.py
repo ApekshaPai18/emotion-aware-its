@@ -5,6 +5,7 @@ Loads settings from .env file with proper typing.
 from pydantic_settings import BaseSettings
 from pydantic import ConfigDict
 from typing import Optional
+import os
 
 class Settings(BaseSettings):
     # App Settings
@@ -37,7 +38,14 @@ class Settings(BaseSettings):
 
 # Create global settings object
 settings = Settings()
-
+if os.environ.get('RENDER'):
+    # Create database directory in /tmp
+    import os
+    os.makedirs('/tmp/database', exist_ok=True)
+    DATABASE_URL = "sqlite:////tmp/database/its.db"
+else:
+    # Local development
+    DATABASE_URL = "sqlite:///./data/database/its.db"
 # For debugging - print loaded settings (remove in production)
 if settings.debug:
     print(f"✅ Configuration loaded: {settings.project_name} v{settings.version}")
