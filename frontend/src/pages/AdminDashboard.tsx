@@ -89,7 +89,7 @@ const AdminDashboard: React.FC = () => {
       return;
     }
     fetchUsers();
-  }, [userId]);
+  }, [userId, userRole, navigate, fetchUsers]);
 
   const fetchUsers = async () => {
     try {
