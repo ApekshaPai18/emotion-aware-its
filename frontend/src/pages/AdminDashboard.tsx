@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Container,
   Paper,
@@ -21,6 +21,7 @@ import {
   InputLabel,
   CircularProgress,
   Alert,
+  Avatar,
   IconButton,
   Tooltip
 } from '@mui/material';
@@ -30,8 +31,8 @@ import PeopleIcon from '@mui/icons-material/People';
 import SchoolIcon from '@mui/icons-material/School';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import RefreshIcon from '@mui/icons-material/Refresh';
-
-
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 
 interface User {
   id: number;
@@ -83,15 +84,8 @@ const AdminDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    if (!userId || userRole !== 'admin') {
-      navigate('/');
-      return;
-    }
-    fetchUsers();
-  }, [userId, userRole, navigate, fetchUsers]);
-
-  const fetchUsers = async () => {
+  // Define fetchUsers FIRST (before using it in useEffect)
+  const fetchUsers = useCallback(async () => {
     try {
       const res = await axios.get('http://localhost:8000/api/v1/admin/users/');
       setUsers(res.data);
@@ -105,20 +99,31 @@ const AdminDashboard: React.FC = () => {
       setError('Failed to load users');
       setLoading(false);
     }
-  };
+  }, [selectedUserId]);
 
-  const fetchUserDashboard = async (uid: number) => {
+  // Define fetchUserDashboard
+  const fetchUserDashboard = useCallback(async (uid: number) => {
     setLoading(true);
     try {
       const res = await axios.get(`http://localhost:8000/api/v1/admin/dashboard/${uid}`);
       setDashboardData(res.data);
+      setError('');
     } catch (err) {
       console.error('Error fetching dashboard:', err);
       setError('Failed to load user dashboard');
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  // Now useEffect can safely use fetchUsers
+  useEffect(() => {
+    if (!userId || userRole !== 'admin') {
+      navigate('/');
+      return;
+    }
+    fetchUsers();
+  }, [userId, userRole, navigate, fetchUsers]);
 
   const handleUserChange = (event: any) => {
     const uid = event.target.value;
