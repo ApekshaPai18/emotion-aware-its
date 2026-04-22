@@ -31,9 +31,13 @@ app = FastAPI(
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000",
-                    "https://your-frontend.vercel.app",  # Replace with your Vercel URL
-                    "https://your-frontend-git-main.vercel.app"],  # React dev server
+    allow_origins=[
+        "http://localhost:3000",
+        "https://emotion-aware-its.vercel.app",
+        "https://emotion-aware-its-git-main.vercel.app",
+        "https://emotion-aware-its-*.vercel.app",
+        "https://*.vercel.app"
+    ],  # React dev server
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
