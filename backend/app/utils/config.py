@@ -1,10 +1,8 @@
 """
 Configuration management for the application.
-Loads settings from .env file with proper typing.
 """
 from pydantic_settings import BaseSettings
 from pydantic import ConfigDict
-from typing import Optional
 import os
 
 class Settings(BaseSettings):
@@ -38,14 +36,23 @@ class Settings(BaseSettings):
 
 # Create global settings object
 settings = Settings()
+
+# Override database URL for Render free tier
 if os.environ.get('RENDER'):
-    # Create database directory in /tmp
+    # Use /tmp directory which is writable on Render free tier
     import os
-    os.makedirs('/tmp/database', exist_ok=True)
-    DATABASE_URL = "sqlite:////tmp/database/its.db"
-else:
-    # Local development
-    DATABASE_URL = "sqlite:///./data/database/its.db"
+    os.makedirs('/tmp', exist_ok=True)
+    settings.database_url = "sqlite:////tmp/its.db"
+    print(f"✅ Render mode: Using database at {settings.database_url}")
+elif settings.database_url.startswith('sqlite:///./'):
+    # Local development - ensure directory exists
+    import os
+    db_path = settings.database_url.replace('sqlite:///', '')
+    db_dir = os.path.dirname(db_path)
+    if db_dir:
+        os.makedirs(db_dir, exist_ok=True)
+    print(f"✅ Local mode: Using database at {settings.database_url}")
+
 # For debugging - print loaded settings (remove in production)
 if settings.debug:
     print(f"✅ Configuration loaded: {settings.project_name} v{settings.version}")
