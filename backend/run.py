@@ -15,11 +15,13 @@ if __name__ == "__main__":
     print(f"📚 API docs at http://localhost:8000/docs")
     print(f"🔧 Debug mode: {settings.debug}")
     print("-" * 50)
+    port = int(os.environ.get("PORT", 8000))
+    print(f"Starting server on 0.0.0.0:{port}")
     
     uvicorn.run(
         "app.main:app",
         host="0.0.0.0",
-        port=8000,
+        port=port,
         reload=settings.debug,
         log_level="info" if not settings.debug else "debug"
     )
