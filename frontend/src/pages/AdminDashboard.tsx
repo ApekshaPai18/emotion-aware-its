@@ -21,7 +21,6 @@ import {
   InputLabel,
   CircularProgress,
   Alert,
-  Avatar,
   IconButton,
   Tooltip
 } from '@mui/material';
@@ -31,8 +30,6 @@ import PeopleIcon from '@mui/icons-material/People';
 import SchoolIcon from '@mui/icons-material/School';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import RefreshIcon from '@mui/icons-material/Refresh';
-import VisibilityIcon from '@mui/icons-material/Visibility';
-import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 
 interface User {
   id: number;
@@ -84,24 +81,7 @@ const AdminDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // Define fetchUsers FIRST (before using it in useEffect)
-  const fetchUsers = useCallback(async () => {
-    try {
-      const res = await axios.get('http://localhost:8000/api/v1/admin/users/');
-      setUsers(res.data);
-      if (res.data.length > 0 && !selectedUserId) {
-        setSelectedUserId(res.data[0].id);
-        fetchUserDashboard(res.data[0].id);
-      }
-      setLoading(false);
-    } catch (err) {
-      console.error('Error fetching users:', err);
-      setError('Failed to load users');
-      setLoading(false);
-    }
-  }, [selectedUserId]);
-
-  // Define fetchUserDashboard
+  // Define fetchUserDashboard first
   const fetchUserDashboard = useCallback(async (uid: number) => {
     setLoading(true);
     try {
@@ -116,7 +96,24 @@ const AdminDashboard: React.FC = () => {
     }
   }, []);
 
-  // Now useEffect can safely use fetchUsers
+  // Define fetchUsers
+  const fetchUsers = useCallback(async () => {
+    try {
+      const res = await axios.get('http://localhost:8000/api/v1/admin/users/');
+      setUsers(res.data);
+      if (res.data.length > 0 && !selectedUserId) {
+        setSelectedUserId(res.data[0].id);
+        fetchUserDashboard(res.data[0].id);
+      }
+      setLoading(false);
+    } catch (err) {
+      console.error('Error fetching users:', err);
+      setError('Failed to load users');
+      setLoading(false);
+    }
+  }, [selectedUserId, fetchUserDashboard]);
+
+  // useEffect
   useEffect(() => {
     if (!userId || userRole !== 'admin') {
       navigate('/');
