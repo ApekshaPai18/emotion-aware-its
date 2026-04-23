@@ -1,6 +1,5 @@
 """
 Main FastAPI application entry point.
-Sets up the application, middleware, and routes.
 """
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -28,33 +27,23 @@ app = FastAPI(
     debug=settings.debug
 )
 
-# Configure CORS
-# app.add_middleware(
-#     CORSMiddleware,
-#     allow_origins=[
-#         "http://localhost:3000",
-#         "https://emotion-aware-its.vercel.app",
-#         "https://emotion-aware-its-git-main.vercel.app",
-#         "https://emotion-aware-its-*.vercel.app",
-#         "https://*.vercel.app"
-#     ],  # React dev server
-#     allow_credentials=True,
-#     allow_methods=["*"],
-#     allow_headers=["*"],
-# )
-# Configure CORS - Allow all origins for testing
+# Configure CORS - FIXED VERSION
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
+        "http://localhost:8000",
         "https://emotion-aware-its.vercel.app",
         "https://emotion-aware-its-git-main.vercel.app",
-        "https://*.vercel.app"
+        "https://*.vercel.app",
+        "https://*.onrender.com"
     ],
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
+
 # Include routers
 app.include_router(router, prefix="/api/v1")
 
