@@ -16,6 +16,23 @@ from ..core.q_agent import QLearningAgent
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import JSONResponse
+
+
+# Handle OPTIONS requests for CORS
+@router.options("/{path:path}")
+async def options_handler(request: Request):
+    return JSONResponse(
+        status_code=200,
+        content={"message": "OK"},
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+            "Access-Control-Allow-Headers": "*",
+        }
+    )
+
 # Initialize Q-Learning Agent
 rl_agent = QLearningAgent(
     actions=["normal", "hint", "repeat", "simplify", "motivate"],
