@@ -1,8 +1,8 @@
 import axios from 'axios';
 import { User, UserCreate, LearnerState, Interaction, Session } from '../types';
 
-// Use environment variable for API URL
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api/v1';
+// IMPORTANT: Use your Render backend URL
+const API_BASE_URL = 'https://emotion-aware-backend.onrender.com/api/v1';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -10,6 +10,24 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
 });
+
+// Add a request interceptor to log requests (for debugging)
+api.interceptors.request.use(request => {
+  console.log('Making request to:', request.baseURL + request.url);
+  return request;
+});
+
+// Add a response interceptor to log responses
+api.interceptors.response.use(
+  response => {
+    console.log('Response from:', response.config.url, response.status);
+    return response;
+  },
+  error => {
+    console.error('API Error:', error.config?.url, error.message);
+    return Promise.reject(error);
+  }
+);
 
 export const createUser = async (userData: UserCreate): Promise<User> => {
   try {
@@ -33,7 +51,7 @@ export const getUser = async (userId: number): Promise<User> => {
 
 export const createSession = async (userId: number): Promise<{ session_id: number; message: string }> => {
   try {
-    const response = await api.post(`/sessions/?user_id=${userId}`);
+    const response = await api.post('/sessions/', { user_id: userId });
     return response.data;
   } catch (error) {
     console.error('Error creating session:', error);
@@ -51,41 +69,45 @@ export const getSession = async (sessionId: number): Promise<Session> => {
   }
 };
 
-export const getNextAction = async (state: LearnerState): Promise<{ action: string; explanation: string; confidence: number }> => {
+export const getNextAction = async (state: LearnerState): Promise<{ action: string; state: number[]; exploration: number }> => {
   try {
-    const response = await api.post('/get-next-action/', state);
-    return response.data;
+    const response = await api.post('/rl-decision/', {
+      prev_emotion: state.current_emotion,
+      current_emotion: state.current_emotion,
+      streak: state.streak,
+      repeat_count: state.repetition_count,
+      face_present: true
+    });
+    return { action: response.data.action, state: [], exploration: 0 };
   } catch (error) {
     console.error('Error getting next action:', error);
     throw error;
   }
 };
 
-export const recordInteraction = async (interaction: {
-  user_id: number;
-  session_id: number;
-  lesson_id: string;
-  question_id?: string;
-  is_correct?: boolean;
-  detected_emotion: string;
-  emotion_confidence: number;
-  rl_action: string;
-}): Promise<any> => {
+export const updateRL = async (
+  state: number[],
+  action: string,
+  reward: number,
+  nextState: number[]
+): Promise<{ message: string }> => {
   try {
-    // Format the data exactly as the backend expects
-    const backendData = {
-      user_id: interaction.user_id,
-      session_id: interaction.session_id,
-      lesson_id: interaction.lesson_id,
-      question_id: interaction.question_id,
-      is_correct: interaction.is_correct,
-      detected_emotion: interaction.detected_emotion,
-      emotion_confidence: interaction.emotion_confidence,
-      rl_action: interaction.rl_action
-    };
-    
-    console.log('Sending interaction:', backendData);
-    const response = await api.post('/interactions/', backendData);
+    const response = await api.post('/update-rl/', {
+      state,
+      action,
+      reward,
+      next_state: nextState,
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error updating RL:', error);
+    throw error;
+  }
+};
+
+export const recordInteraction = async (interaction: Interaction): Promise<Interaction> => {
+  try {
+    const response = await api.post<Interaction>('/interactions/', interaction);
     return response.data;
   } catch (error) {
     console.error('Error recording interaction:', error);
