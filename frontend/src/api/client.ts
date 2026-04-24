@@ -13,7 +13,8 @@ const api = axios.create({
 
 // Add a request interceptor to log requests (for debugging)
 api.interceptors.request.use(request => {
-  console.log('Making request to:', request.baseURL + request.url);
+  const url = request.baseURL ? request.baseURL + request.url : request.url || 'unknown';
+  console.log('Making request to:', url);
   return request;
 });
 
@@ -24,7 +25,8 @@ api.interceptors.response.use(
     return response;
   },
   error => {
-    console.error('API Error:', error.config?.url, error.message);
+    const url = error.config?.url || 'unknown';
+    console.error('API Error:', url, error.message);
     return Promise.reject(error);
   }
 );
