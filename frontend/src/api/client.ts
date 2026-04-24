@@ -1,8 +1,8 @@
 import axios from 'axios';
 import { User, UserCreate, LearnerState, Interaction, Session } from '../types';
 
-// IMPORTANT: Use your Render backend URL
-const API_BASE_URL = 'https://emotion-aware-backend.onrender.com/api/v1';
+// Use environment variable or fallback to Render backend
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://emotion-aware-backend.onrender.com/api/v1';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -10,26 +10,6 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
 });
-
-// Add a request interceptor to log requests (for debugging)
-api.interceptors.request.use(request => {
-  const url = request.baseURL ? request.baseURL + request.url : request.url || 'unknown';
-  console.log('Making request to:', url);
-  return request;
-});
-
-// Add a response interceptor to log responses
-api.interceptors.response.use(
-  response => {
-    console.log('Response from:', response.config.url, response.status);
-    return response;
-  },
-  error => {
-    const url = error.config?.url || 'unknown';
-    console.error('API Error:', url, error.message);
-    return Promise.reject(error);
-  }
-);
 
 export const createUser = async (userData: UserCreate): Promise<User> => {
   try {
