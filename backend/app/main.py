@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import logging
+import os
 
 from .api.routes import router
 from .models.database import init_db, engine
@@ -27,29 +28,21 @@ app = FastAPI(
     debug=settings.debug
 )
 
-# Configure CORS - FIXED VERSION
+# Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://localhost:8000",
-        "https://emotion-aware-its.vercel.app",
-        "https://emotion-aware-its-git-main.vercel.app",
-        "https://*.vercel.app",
-        "https://*.onrender.com"
-    ],
+    allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["*"],
 )
 
-# Include routers
+# Include routers - THIS MUST BE HERE
 app.include_router(router, prefix="/api/v1")
 
 @app.get("/")
 async def root():
-    """Root endpoint - API health check"""
+    """Root endpoint"""
     return {
         "message": f"Welcome to {settings.project_name}",
         "version": settings.version,
@@ -58,11 +51,16 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint for monitoring"""
+    """Health check endpoint"""
     return {
         "status": "healthy",
         "database": "connected"
     }
+
+@app.get("/api/v1/test")
+async def test():
+    """Test endpoint"""
+    return {"message": "API is working!"}
 
 # Startup event
 @app.on_event("startup")
