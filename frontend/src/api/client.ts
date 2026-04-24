@@ -1,8 +1,10 @@
 import axios from 'axios';
 import { User, UserCreate, LearnerState, Interaction, Session } from '../types';
 
-// Use environment variable or fallback to Render backend
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://emotion-aware-backend.onrender.com/api/v1';
+// HARDCODED - Using your Render backend URL
+const API_BASE_URL = 'https://emotion-aware-backend.onrender.com/api/v1';
+
+console.log('API Base URL:', API_BASE_URL);
 
 const api = axios.create({
   baseURL: API_BASE_URL,
