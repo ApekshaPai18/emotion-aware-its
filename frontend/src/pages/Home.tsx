@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Container, Paper, TextField, Button, Typography, Alert, Tab, Tabs } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
+import { createUser, createSession, getUserByUsername } from '../api/client';
 
 const Home: React.FC = () => {
   const navigate = useNavigate();
@@ -26,25 +26,20 @@ const Home: React.FC = () => {
     setError('');
     
     try {
-      // Create new user
-      const userRes = await axios.post('http://localhost:8000/api/v1/users/', {
-        username: newUsername, 
-        email: newEmail
-      });
+      // Create new user using API client
+      const user = await createUser({ username: newUsername, email: newEmail });
       
-      console.log('User created:', userRes.data);
+      console.log('User created:', user);
       
-      // Create session
-      const sessionRes = await axios.post('http://localhost:8000/api/v1/sessions/', {
-        user_id: userRes.data.id
-      });
+      // Create session using API client
+      const session = await createSession(user.id);
       
-      console.log('Session created:', sessionRes.data);
+      console.log('Session created:', session);
       
       navigate('/learn', {
         state: {
-          userId: userRes.data.id,
-          sessionId: sessionRes.data.session_id,
+          userId: user.id,
+          sessionId: session.session_id,
           userName: newUsername,
           userRole: 'user'
         }
@@ -75,19 +70,17 @@ const Home: React.FC = () => {
     
     try {
       // Get existing user by username
-      const userRes = await axios.get(`http://localhost:8000/api/v1/users/by-username/${existingUsername}`);
+      const user = await getUserByUsername(existingUsername);
       
       // Create a new session for this user
-      const sessionRes = await axios.post('http://localhost:8000/api/v1/sessions/', {
-        user_id: userRes.data.id
-      });
+      const session = await createSession(user.id);
       
-      console.log('Session created:', sessionRes.data);
+      console.log('Session created:', session);
       
       navigate('/learn', {
         state: {
-          userId: userRes.data.id,
-          sessionId: sessionRes.data.session_id,
+          userId: user.id,
+          sessionId: session.session_id,
           userName: existingUsername,
           userRole: 'user'
         }
@@ -111,9 +104,9 @@ const Home: React.FC = () => {
     setError('');
     
     try {
-      const userRes = await axios.get(`http://localhost:8000/api/v1/users/by-username/${adminUsername}`);
+      const user = await getUserByUsername(adminUsername);
       
-      if (userRes.data.role !== 'admin') {
+      if (user.role !== 'admin') {
         setError('Not an admin account');
         setLoading(false);
         return;
@@ -121,7 +114,7 @@ const Home: React.FC = () => {
       
       navigate('/admin-dashboard', {
         state: {
-          userId: userRes.data.id,
+          userId: user.id,
           userName: adminUsername,
           userRole: 'admin'
         }
