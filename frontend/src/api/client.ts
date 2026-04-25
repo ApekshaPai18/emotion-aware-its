@@ -33,6 +33,16 @@ export const getUser = async (userId: number): Promise<User> => {
   }
 };
 
+export const getUserByUsername = async (username: string): Promise<User> => {
+  try {
+    const response = await api.get<User>(`/users/by-username/${username}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error getting user by username:', error);
+    throw error;
+  }
+};
+
 export const createSession = async (userId: number): Promise<{ session_id: number; message: string }> => {
   try {
     const response = await api.post('/sessions/', { user_id: userId });
