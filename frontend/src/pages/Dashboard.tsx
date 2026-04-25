@@ -28,6 +28,7 @@ import TimelineIcon from '@mui/icons-material/Timeline';
 import DownloadIcon from '@mui/icons-material/Download';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+const API_BASE_URL = 'https://emotion-aware-its.onrender.com/api/v1';
 
 interface DashboardData {
   user: {
@@ -70,7 +71,7 @@ const Dashboard: React.FC = () => {
     if (!userId) return;
     
     try {
-      const res = await axios.get(`http://localhost:8000/api/v1/dashboard/${userId}`);
+      const res = await axios.get(`${API_BASE_URL}/dashboard/${userId}`);
       setDashboardData(res.data);
       setLoading(false);
     } catch (err) {
