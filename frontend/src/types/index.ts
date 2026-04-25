@@ -2,6 +2,7 @@ export interface User {
   id: number;
   username: string;
   email: string;
+  role?: string;  // Added for admin check
   created_at: string;
   last_active: string;
 }
@@ -26,7 +27,7 @@ export interface EmotionStats {
   sad: number;
   frustrated: number;
   surprise: number;
-  confused: number;  // Add this
+  confused: number;
 }
 
 export interface Lesson {
@@ -94,6 +95,3 @@ export interface ApiResponse<T> {
   error?: string;
   message?: string;
 }
-
-
-
