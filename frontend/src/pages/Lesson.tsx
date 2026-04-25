@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Container,
   Paper,
@@ -13,14 +13,18 @@ import {
   DialogContent,
   DialogActions,
   Snackbar,
-  IconButton
-  
+  IconButton,
+  CircularProgress
 } from '@mui/material';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import VideocamIcon from '@mui/icons-material/Videocam';
 import VideocamOffIcon from '@mui/icons-material/VideocamOff';
 import CloseIcon from '@mui/icons-material/Close';
+import * as faceapi from 'face-api.js';
+
+// Use your Render backend URL
+const API_BASE_URL = 'https://emotion-aware-its.onrender.com/api/v1';
 
 const LESSONS = [
   {
@@ -124,7 +128,10 @@ const Learn: React.FC = () => {
   const [faceDetected, setFaceDetected] = useState(false);
   const [showFaceWarning, setShowFaceWarning] = useState(false);
   const [webcamActive, setWebcamActive] = useState(false);
+  const [modelsLoading, setModelsLoading] = useState(true);
+  const [modelsError, setModelsError] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const detectionIntervalRef = useRef<NodeJS.Timeout | null>(null);
   
@@ -146,45 +153,121 @@ const Learn: React.FC = () => {
   const [isSimplified, setIsSimplified] = useState(false);
   const [simplifiedContent, setSimplifiedContent] = useState('');
 
-  // Simplified face and emotion detection (no face-api.js)
-  const detectFaceAndEmotion = () => {
-    if (!videoRef.current || !webcamActive) return;
-    
-    setPrevEmotion(emotion);
-    
-    // Simulate face detection (always true when webcam is active)
-    setFaceDetected(true);
-    
-    // Simulate emotion based on quiz performance
-    let detectedEmotion = 'neutral';
-    
-    if (quizSubmitted && mode === 'quiz') {
-      const lastAnswerCorrect = quizAnswer !== null && 
-        quizAnswer === LESSONS[currentLesson].quiz.correct;
-      
-      if (lastAnswerCorrect) {
-        detectedEmotion = 'happy';
-      } else if (streak === 0 && repeatCount > 0) {
-        detectedEmotion = 'frustrated';
-      } else if (repeatCount > 2) {
-        detectedEmotion = 'sad';
-      } else {
-        detectedEmotion = 'neutral';
+  // Load face-api models
+  useEffect(() => {
+    const loadModels = async () => {
+      try {
+        setModelsLoading(true);
+        setModelsError(false);
+        
+        const MODEL_URL = 'https://justadudewhohacks.github.io/face-api.js/models';
+        
+        await Promise.all([
+          faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+          faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+          faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
+          faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL)
+        ]);
+        
+        console.log('Face detection models loaded successfully');
+        setModelsLoading(false);
+      } catch (err) {
+        console.error('Failed to load face detection models:', err);
+        setModelsError(true);
+        setModelsLoading(false);
+        setFaceDetected(true);
       }
-    } else {
-      const emotions = ['neutral', 'neutral', 'neutral', 'happy', 'confused'];
-      detectedEmotion = emotions[Math.floor(Math.random() * emotions.length)];
+    };
+    
+    loadModels();
+  }, []);
+
+  const detectFaceAndEmotion = async () => {
+    if (!videoRef.current || !videoRef.current.videoWidth || modelsLoading) return;
+    
+    if (modelsError) {
+      setFaceDetected(true);
+      return;
     }
     
-    const displayEmotion = detectedEmotion.charAt(0).toUpperCase() + detectedEmotion.slice(1);
-    setEmotion(displayEmotion);
-    
-    setEmotionHistory(prev => {
-      const newHistory = { ...prev };
-      const emotionKey = detectedEmotion.toLowerCase();
-      newHistory[emotionKey] = (newHistory[emotionKey] || 0) + 1;
-      return newHistory;
-    });
+    try {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      
+      if (!canvas) return;
+      
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      
+      const detections = await faceapi.detectAllFaces(
+        video, 
+        new faceapi.TinyFaceDetectorOptions()
+      ).withFaceLandmarks().withFaceExpressions();
+      
+      const hasFace = detections.length > 0;
+      
+      setPrevEmotion(emotion);
+      
+      if (hasFace) {
+        setFaceDetected(true);
+        
+        if (showFaceWarning) {
+          setShowFaceWarning(false);
+        }
+        
+        const expressions = detections[0].expressions;
+        let dominantEmotion = 'neutral';
+        let maxScore = 0;
+        
+        for (const [exp, score] of Object.entries(expressions)) {
+          if (score > maxScore) {
+            maxScore = score;
+            if (exp === 'happy') dominantEmotion = 'happy';
+            else if (exp === 'sad') dominantEmotion = 'sad';
+            else if (exp === 'angry') dominantEmotion = 'frustrated';
+            else if (exp === 'surprised') dominantEmotion = 'surprise';
+            else if (exp === 'fearful') dominantEmotion = 'confused';
+            else if (exp === 'disgusted') dominantEmotion = 'frustrated';
+            else dominantEmotion = 'neutral';
+          }
+        }
+        
+        const displayEmotion = dominantEmotion.charAt(0).toUpperCase() + dominantEmotion.slice(1);
+        setEmotion(displayEmotion);
+        
+        setEmotionHistory(prev => {
+          const newHistory = { ...prev };
+          const emotionKey = dominantEmotion.toLowerCase();
+          newHistory[emotionKey] = (newHistory[emotionKey] || 0) + 1;
+          return newHistory;
+        });
+        
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          faceapi.draw.drawDetections(canvas, detections);
+          faceapi.draw.drawFaceLandmarks(canvas, detections);
+          faceapi.draw.drawFaceExpressions(canvas, detections);
+        }
+        
+      } else {
+        setFaceDetected(false);
+        setEmotion('No Face');
+        
+        const ctx = canvas?.getContext('2d');
+        if (ctx) {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+        
+        if (!showFaceWarning) {
+          setShowFaceWarning(true);
+          setSnackbarOpen(true);
+        }
+      }
+    } catch (err) {
+      console.error('Face detection error:', err);
+      setFaceDetected(true);
+    }
   };
 
   const startWebcam = async () => {
@@ -202,7 +285,7 @@ const Learn: React.FC = () => {
           if (detectionIntervalRef.current) {
             clearInterval(detectionIntervalRef.current);
           }
-          detectionIntervalRef.current = setInterval(detectFaceAndEmotion, 2000);
+          detectionIntervalRef.current = setInterval(detectFaceAndEmotion, 500);
         };
       }
     } catch (err) {
@@ -229,7 +312,7 @@ const Learn: React.FC = () => {
 
   const getRLDecision = async () => {
     try {
-      const res = await axios.post('http://localhost:8000/api/v1/rl-decision/', {
+      const res = await axios.post(`${API_BASE_URL}/rl-decision/`, {
         prev_emotion: prevEmotion,
         current_emotion: emotion,
         streak: streak,
@@ -248,7 +331,7 @@ const Learn: React.FC = () => {
 
   const updateRL = async (correct: boolean, action: string) => {
     try {
-      await axios.post('http://localhost:8000/api/v1/update-rl/', {
+      await axios.post(`${API_BASE_URL}/update-rl/`, {
         prev_emotion: prevEmotion,
         current_emotion: emotion,
         streak: streak,
@@ -268,7 +351,8 @@ const Learn: React.FC = () => {
   };
 
   const handleQuizSubmit = async () => {
-    if (!faceDetected) {
+    // REAL FACE DETECTION CHECK
+    if (!faceDetected && !modelsError) {
       setShowFaceWarning(true);
       setSnackbarOpen(true);
       return;
@@ -297,7 +381,7 @@ const Learn: React.FC = () => {
       resetSimplifiedMode();
       
       try {
-        await axios.post('http://localhost:8000/api/v1/interactions/', {
+        await axios.post(`${API_BASE_URL}/interactions/`, {
           user_id: userId,
           session_id: location.state?.sessionId,
           lesson_id: LESSONS[currentLesson].id.toString(),
@@ -316,7 +400,7 @@ const Learn: React.FC = () => {
         
         if (isLastLesson) {
           try {
-            await axios.post(`http://localhost:8000/api/v1/leaderboard/update/${userId}`);
+            await axios.post(`${API_BASE_URL}/leaderboard/update/${userId}`);
             console.log('Leaderboard updated successfully');
           } catch (err) {
             console.error('Failed to update leaderboard:', err);
@@ -354,7 +438,7 @@ const Learn: React.FC = () => {
       setMessage(`❌ Incorrect. ${LESSONS[currentLesson].quiz.explanation}`);
       
       try {
-        await axios.post('http://localhost:8000/api/v1/interactions/', {
+        await axios.post(`${API_BASE_URL}/interactions/`, {
           user_id: userId,
           session_id: location.state?.sessionId,
           lesson_id: LESSONS[currentLesson].id.toString(),
@@ -421,7 +505,8 @@ const Learn: React.FC = () => {
   };
 
   const handleTakeQuiz = () => {
-    if (!faceDetected) {
+    // REAL FACE DETECTION CHECK
+    if (!faceDetected && !modelsError) {
       setShowFaceWarning(true);
       setSnackbarOpen(true);
       return;
@@ -438,6 +523,14 @@ const Learn: React.FC = () => {
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
+      {/* Model Loading Indicator */}
+      {modelsLoading && (
+        <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
+          <CircularProgress size={24} sx={{ mr: 1 }} />
+          <Typography>Loading face detection models...</Typography>
+        </Box>
+      )}
+
       {/* Face Warning Dialog */}
       <Dialog open={showFaceWarning} onClose={() => setShowFaceWarning(false)}>
         <DialogTitle sx={{ bgcolor: '#ff9800', color: 'white' }}>
@@ -503,7 +596,7 @@ const Learn: React.FC = () => {
                     variant="contained" 
                     onClick={handleTakeQuiz} 
                     size="large"
-                    disabled={!faceDetected}
+                    disabled={!faceDetected && !modelsError}
                     sx={{ px: 4 }}
                   >
                     Take Quiz
@@ -538,7 +631,7 @@ const Learn: React.FC = () => {
                     key={idx}
                     variant={quizAnswer === idx ? 'contained' : 'outlined'}
                     onClick={() => !quizSubmitted && setQuizAnswer(idx)}
-                    disabled={quizSubmitted || !faceDetected}
+                    disabled={quizSubmitted || (!faceDetected && !modelsError)}
                     sx={{ justifyContent: 'flex-start', p: 2, textTransform: 'none' }}
                   >
                     {String.fromCharCode(65 + idx)}. {opt}
@@ -553,7 +646,7 @@ const Learn: React.FC = () => {
               <Button
                 variant="contained"
                 onClick={handleQuizSubmit}
-                disabled={quizAnswer === null || quizSubmitted || loading || !faceDetected}
+                disabled={quizAnswer === null || quizSubmitted || loading || (!faceDetected && !modelsError)}
                 sx={{ mt: 3, py: 1.5 }}
                 fullWidth
               >
@@ -574,6 +667,18 @@ const Learn: React.FC = () => {
               playsInline
               muted
             />
+            <canvas
+              ref={canvasRef}
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                pointerEvents: 'none',
+                transform: 'scaleX(-1)'
+              }}
+            />
           </div>
           
           {!webcamActive ? (
@@ -583,13 +688,20 @@ const Learn: React.FC = () => {
               onClick={startWebcam} 
               sx={{ mt: 2 }} 
               fullWidth
+              disabled={modelsLoading}
             >
-              Start Webcam
+              {modelsLoading ? 'Loading Models...' : 'Start Webcam'}
             </Button>
           ) : (
             <Button variant="outlined" startIcon={<VideocamOffIcon />} onClick={stopWebcam} sx={{ mt: 2 }} fullWidth color="error">
               Stop Webcam
             </Button>
+          )}
+
+          {modelsError && (
+            <Alert severity="warning" sx={{ mt: 2 }}>
+              Face detection models couldn't load. Continuing without face detection.
+            </Alert>
           )}
 
           <Box sx={{ textAlign: 'center', mt: 2 }}>
@@ -610,7 +722,7 @@ const Learn: React.FC = () => {
             />
           </Box>
 
-          {!faceDetected && webcamActive && (
+          {!faceDetected && webcamActive && !modelsError && (
             <Alert severity="warning" sx={{ mt: 2 }}>
               ⚠️ Face not detected! Please look at the camera to continue learning.
             </Alert>
