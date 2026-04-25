@@ -2,7 +2,7 @@ import axios from 'axios';
 import { User, UserCreate, LearnerState, Interaction, Session } from '../types';
 
 // HARDCODED - Using your Render backend URL
-const API_BASE_URL = 'https://emotion-aware-backend.onrender.com/api/v1';
+const API_BASE_URL = 'https://emotion-aware-its.onrender.com/api/v1';
 
 console.log('API Base URL:', API_BASE_URL);
 
