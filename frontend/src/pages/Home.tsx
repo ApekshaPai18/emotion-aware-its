@@ -106,7 +106,7 @@ const Home: React.FC = () => {
     try {
       const user = await getUserByUsername(adminUsername);
       
-      if (user.role !== 'admin') {
+      if (user.role && user.role !== 'admin') {
         setError('Not an admin account');
         setLoading(false);
         return;
