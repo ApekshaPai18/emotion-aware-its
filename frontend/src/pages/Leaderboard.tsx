@@ -49,7 +49,16 @@ const Leaderboard: React.FC = () => {
   const fetchLeaderboard = async () => {
     try {
       const res = await axios.get(`${API_BASE_URL}/leaderboard/`);
-      setLeaderboard(res.data);
+      // Filter out admin users and users with username 'admin'
+      const filteredData = res.data.filter((entry: LeaderboardEntry) => 
+        entry.username.toLowerCase() !== 'admin'
+      );
+      // Re-rank after filtering
+      const rerankedData = filteredData.map((entry: LeaderboardEntry, index: number) => ({
+        ...entry,
+        rank: index + 1
+      }));
+      setLeaderboard(rerankedData);
       setLoading(false);
     } catch (err) {
       console.error('Error fetching leaderboard:', err);
@@ -106,108 +115,122 @@ const Leaderboard: React.FC = () => {
         </Alert>
       )}
 
-      {/* Top 3 Highlight */}
-      {leaderboard.length >= 3 && (
-        <Box sx={{ display: 'flex', justifyContent: 'center', gap: 4, mb: 4, flexWrap: 'wrap' }}>
-          {[0, 1, 2].map((idx) => {
-            const entry = leaderboard[idx];
-            if (!entry) return null;
-            return (
-              <Card 
-                key={entry.rank} 
-                elevation={3} 
-                sx={{ 
-                  p: 3, 
-                  textAlign: 'center', 
-                  width: 200,
-                  background: entry.rank === 1 ? 'linear-gradient(135deg, #FFD700 0%, #FFB347 100%)' :
-                              entry.rank === 2 ? 'linear-gradient(135deg, #C0C0C0 0%, #A0A0A0 100%)' :
-                              'linear-gradient(135deg, #CD7F32 0%, #B87333 100%)',
-                  color: 'white'
-                }}
-              >
-                <Typography variant="h2">{getRankIcon(entry.rank)}</Typography>
-                <Avatar sx={{ width: 60, height: 60, mx: 'auto', mb: 1, bgcolor: 'white', color: getRankColor(entry.rank) }}>
-                  {entry.username.charAt(0).toUpperCase()}
-                </Avatar>
-                <Typography variant="h6">{entry.username}</Typography>
-                <Typography variant="h5">{entry.total_score}</Typography>
-                <Typography variant="caption">points</Typography>
-              </Card>
-            );
-          })}
-        </Box>
-      )}
+      {leaderboard.length === 0 ? (
+        <Paper sx={{ p: 4, textAlign: 'center' }}>
+          <Typography variant="h6">No learners yet</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+            Complete a learning session to appear on the leaderboard!
+          </Typography>
+          <Button variant="contained" onClick={() => navigate('/')} sx={{ mt: 3 }}>
+            Start Learning
+          </Button>
+        </Paper>
+      ) : (
+        <>
+          {/* Top 3 Highlight */}
+          {leaderboard.length >= 3 && (
+            <Box sx={{ display: 'flex', justifyContent: 'center', gap: 4, mb: 4, flexWrap: 'wrap' }}>
+              {[0, 1, 2].map((idx) => {
+                const entry = leaderboard[idx];
+                if (!entry) return null;
+                return (
+                  <Card 
+                    key={entry.rank} 
+                    elevation={3} 
+                    sx={{ 
+                      p: 3, 
+                      textAlign: 'center', 
+                      width: 200,
+                      background: entry.rank === 1 ? 'linear-gradient(135deg, #FFD700 0%, #FFB347 100%)' :
+                                  entry.rank === 2 ? 'linear-gradient(135deg, #C0C0C0 0%, #A0A0A0 100%)' :
+                                  'linear-gradient(135deg, #CD7F32 0%, #B87333 100%)',
+                      color: 'white'
+                    }}
+                  >
+                    <Typography variant="h2">{getRankIcon(entry.rank)}</Typography>
+                    <Avatar sx={{ width: 60, height: 60, mx: 'auto', mb: 1, bgcolor: 'white', color: getRankColor(entry.rank) }}>
+                      {entry.username.charAt(0).toUpperCase()}
+                    </Avatar>
+                    <Typography variant="h6">{entry.username}</Typography>
+                    <Typography variant="h5">{entry.total_score}</Typography>
+                    <Typography variant="caption">points</Typography>
+                  </Card>
+                );
+              })}
+            </Box>
+          )}
 
-      {/* Full Leaderboard Table */}
-      <Paper elevation={3} sx={{ p: 3 }}>
-        <Typography variant="h6" gutterBottom>📊 Full Ranking</Typography>
-        <TableContainer>
-          <Table>
-            <TableHead>
-              <TableRow sx={{ bgcolor: '#f5f5f5' }}>
-                <TableCell align="center">Rank</TableCell>
-                <TableCell>User</TableCell>
-                <TableCell align="right">Score</TableCell>
-                <TableCell align="right">Correct</TableCell>
-                <TableCell align="right">Accuracy</TableCell>
-                <TableCell align="right">Best Streak</TableCell>
-                <TableCell align="right">Sessions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {leaderboard.map((entry) => (
-                <TableRow key={entry.user_id} hover>
-                  <TableCell align="center">
-                    <Chip 
-                      label={`#${entry.rank}`} 
-                      size="small"
-                      sx={{ 
-                        bgcolor: getRankColor(entry.rank),
-                        color: 'white',
-                        fontWeight: 'bold'
-                      }}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Avatar sx={{ width: 32, height: 32, bgcolor: getRankColor(entry.rank) }}>
-                        {entry.username.charAt(0).toUpperCase()}
-                      </Avatar>
-                      <Typography variant="body2">{entry.username}</Typography>
-                    </Box>
-                  </TableCell>
-                  <TableCell align="right">
-                    <Typography variant="body2" fontWeight="bold">{entry.total_score}</Typography>
-                  </TableCell>
-                  <TableCell align="right">
-                    {entry.correct_answers}/{entry.total_questions}
-                  </TableCell>
-                  <TableCell align="right">
-                    <Chip 
-                      label={`${entry.accuracy}%`} 
-                      size="small"
-                      color={entry.accuracy >= 80 ? 'success' : entry.accuracy >= 60 ? 'warning' : 'error'}
-                    />
-                  </TableCell>
-                  <TableCell align="right">
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.5 }}>
-                      <TrendingUpIcon fontSize="small" color="primary" />
-                      <Typography variant="body2">{entry.best_streak}</Typography>
-                    </Box>
-                  </TableCell>
-                  <TableCell align="right">
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.5 }}>
-                      <SchoolIcon fontSize="small" color="secondary" />
-                      <Typography variant="body2">{entry.total_sessions}</Typography>
-                    </Box>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      </Paper>
+          {/* Full Leaderboard Table */}
+          <Paper elevation={3} sx={{ p: 3 }}>
+            <Typography variant="h6" gutterBottom>📊 Full Ranking</Typography>
+            <TableContainer>
+              <Table>
+                <TableHead>
+                  <TableRow sx={{ bgcolor: '#f5f5f5' }}>
+                    <TableCell align="center">Rank</TableCell>
+                    <TableCell>User</TableCell>
+                    <TableCell align="right">Score</TableCell>
+                    <TableCell align="right">Correct</TableCell>
+                    <TableCell align="right">Accuracy</TableCell>
+                    <TableCell align="right">Best Streak</TableCell>
+                    <TableCell align="right">Sessions</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {leaderboard.map((entry) => (
+                    <TableRow key={entry.user_id} hover>
+                      <TableCell align="center">
+                        <Chip 
+                          label={`#${entry.rank}`} 
+                          size="small"
+                          sx={{ 
+                            bgcolor: getRankColor(entry.rank),
+                            color: 'white',
+                            fontWeight: 'bold'
+                          }}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Avatar sx={{ width: 32, height: 32, bgcolor: getRankColor(entry.rank) }}>
+                            {entry.username.charAt(0).toUpperCase()}
+                          </Avatar>
+                          <Typography variant="body2">{entry.username}</Typography>
+                        </Box>
+                      </TableCell>
+                      <TableCell align="right">
+                        <Typography variant="body2" fontWeight="bold">{entry.total_score}</Typography>
+                      </TableCell>
+                      <TableCell align="right">
+                        {entry.correct_answers}/{entry.total_questions}
+                      </TableCell>
+                      <TableCell align="right">
+                        <Chip 
+                          label={`${entry.accuracy}%`} 
+                          size="small"
+                          color={entry.accuracy >= 80 ? 'success' : entry.accuracy >= 60 ? 'warning' : 'error'}
+                        />
+                      </TableCell>
+                      <TableCell align="right">
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.5 }}>
+                          <TrendingUpIcon fontSize="small" color="primary" />
+                          <Typography variant="body2">{entry.best_streak}</Typography>
+                        </Box>
+                      </TableCell>
+                      <TableCell align="right">
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.5 }}>
+                          <SchoolIcon fontSize="small" color="secondary" />
+                          <Typography variant="body2">{entry.total_sessions}</Typography>
+                        </Box>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Paper>
+        </>
+      )}
 
       <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
         <Button variant="contained" onClick={() => navigate('/')}>
