@@ -25,6 +25,8 @@ import axios from 'axios';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import LeaderboardIcon from '@mui/icons-material/Leaderboard';
 
+const API_BASE_URL = 'https://emotion-aware-its.onrender.com/api/v1';
+
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
 interface EmotionStats {
@@ -156,7 +158,7 @@ const Results: React.FC = () => {
     }
     
     try {
-      const sessionRes = await axios.post('http://localhost:8000/api/v1/sessions/', {
+      const sessionRes = await axios.post(`${API_BASE_URL}/sessions/`, {
         user_id: userId
       });
       
