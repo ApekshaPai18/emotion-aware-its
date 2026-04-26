@@ -22,6 +22,8 @@ import axios from 'axios';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import SchoolIcon from '@mui/icons-material/School';
 
+const API_BASE_URL = 'https://emotion-aware-its.onrender.com/api/v1';
+
 interface LeaderboardEntry {
   rank: number;
   user_id: number;
@@ -46,7 +48,7 @@ const Leaderboard: React.FC = () => {
 
   const fetchLeaderboard = async () => {
     try {
-      const res = await axios.get('http://localhost:8000/api/v1/leaderboard/');
+      const res = await axios.get(`${API_BASE_URL}/leaderboard/`);
       setLeaderboard(res.data);
       setLoading(false);
     } catch (err) {
