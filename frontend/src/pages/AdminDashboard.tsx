@@ -31,6 +31,8 @@ import SchoolIcon from '@mui/icons-material/School';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import RefreshIcon from '@mui/icons-material/Refresh';
 
+const API_BASE_URL = 'https://emotion-aware-its.onrender.com/api/v1';
+
 interface User {
   id: number;
   username: string;
@@ -85,7 +87,7 @@ const AdminDashboard: React.FC = () => {
   const fetchUserDashboard = useCallback(async (uid: number) => {
     setLoading(true);
     try {
-      const res = await axios.get(`http://localhost:8000/api/v1/admin/dashboard/${uid}`);
+      const res = await axios.get(`${API_BASE_URL}/admin/dashboard/${uid}`);
       setDashboardData(res.data);
       setError('');
     } catch (err) {
@@ -99,7 +101,7 @@ const AdminDashboard: React.FC = () => {
   // Define fetchUsers
   const fetchUsers = useCallback(async () => {
     try {
-      const res = await axios.get('http://localhost:8000/api/v1/admin/users/');
+      const res = await axios.get(`${API_BASE_URL}/admin/users/`);
       setUsers(res.data);
       if (res.data.length > 0 && !selectedUserId) {
         setSelectedUserId(res.data[0].id);
